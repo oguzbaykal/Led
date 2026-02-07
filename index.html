@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stok Pro v1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        .app-container { max-width: 500px; margin: auto; }
+        .glass-card { background: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e5e7eb; }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="app-container">
+        <header class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-extrabold text-indigo-700 underline">StokTakip+</h1>
+            <button onclick="verileriSifirla()" class="text-xs text-red-500 font-medium">Verileri Sıfırla</button>
+        </header>
+
+        <div class="glass-card p-4 mb-6">
+            <h2 class="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Hızlı Ürün Ekle</h2>
+            <div class="space-y-2">
+                <input id="uAd" type="text" placeholder="Ürün Adı" class="w-full border p-3 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none transition-all">
+                <div class="flex gap-2">
+                    <input id="uFiyat" type="number" placeholder="Fiyat ₺" class="w-1/2 border p-3 rounded-xl outline-none">
+                    <input id="uStok" type="number" placeholder="Stok" class="w-1/2 border p-3 rounded-xl outline-none">
+                </div>
+                <button onclick="urunEkle()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-xl transition-colors">Sisteme Kaydet</button>
+            </div>
+        </div>
+
+        <h2 class="text-sm font-bold text-gray-500 mb-2 uppercase tracking-wider px-1">Mevcut Stoklar</h2>
+        <div id="urunListesi" class="space-y-3 mb-6">
+            </div>
+
+        <div class="glass-card p-4 bg-indigo-900 text-white">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-indigo-200">AKTİF SEPET</h2>
+                <input id="mAd" type="text" placeholder="Müşteri Adı" class="bg-indigo-800 text-white p-1 rounded border border-indigo-700 text-sm">
+            </div>
+            <div id="sepetListesi" class="text-sm space-y-2 mb-4 min-h-[40px]">
+                </div>
+            <div class="flex justify-between items-center border-t border-indigo-800 pt-3">
+                <span class="text-indigo-300">Genel Toplam:</span>
+                <span class="text-2xl font-black text-white"><span id="toplamFiyat">0</span> ₺</span>
+            </div>
+            <button onclick="sepetiOnayla()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold p-3 rounded-xl mt-4 shadow-lg transition-transform active:scale-95">
+                Siparişi Tamamla & Stoktan Düş
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Sayfa açıldığında verileri hafızadan (LocalStorage) geri yükle
+        let urunler = JSON.parse(localStorage.getItem('urunler')) || [];
+        let sepet = [];
+
+        function urunEkle() {
+            const ad = document.getElementById('uAd').value;
+            const fiyat = parseFloat(document.getElementById('uFiyat').value);
+            const stok = parseInt(document.getElementById('uStok').value);
+
+            if(ad && fiyat && stok >= 0) {
+                urunler.push({ id: Date.now(), ad, fiyat, stok });
+                kaydetVeGuncelle();
+                document.getElementById('uAd').value = '';
+                document.getElementById('uFiyat').value = '';
+                document.getElementById('uStok').value = '';
+            }
+        }
+
+        function sepeteEkle(id) {
+            const urun = urunler.find(u => u.id === id);
+            if(urun.stok > 0) {
+                sepet.push({...urun});
+                guncelleEkran();
+            } else {
+                alert("Üzgünüz, bu ürünün stoğu tükenmiş!");
+            }
+        }
+
+        function sepetiOnayla() {
+            if(sepet.length === 0) return alert("Sepet boş!");
+            
+            const musterı = document.getElementById('mAd').value || "Genel Müşteri";
+
+            sepet.forEach(sItem => {
+                const urun = urunler.find(u => u.id === sItem.id);
+                if(urun && urun.stok > 0) urun.stok--;
+            });
+
+            alert(`${musterı} adına satış yapıldı ve stoktan düşüldü!`);
+            sepet = [];
+            document.getElementById('mAd').value = '';
+            kaydetVeGuncelle();
+        }
+
+        function verileriSifirla() {
+            if(confirm("Tüm stok verileri silinecek. Emin misiniz?")) {
+                urunler = [];
+                kaydetVeGuncelle();
+            }
+        }
+
+        function kaydetVeGuncelle() {
+            localStorage.setItem('urunler', JSON.stringify(urunler));
+            guncelleEkran();
+        }
+
+        function guncelleEkran() {
+            const uDiv = document.getElementById('urunListesi');
+            uDiv.innerHTML = urunler.length === 0 ? '<p class="text-gray-400 text-center text-sm">Henüz ürün eklenmemiş.</p>' : '';
+            
+            urunler.forEach(u => {
+                const stokRengi = u.stok < 5 ? 'text-red-500 font-bold' : 'text-gray-500';
+                uDiv.innerHTML += `
+                    <div class="glass-card p-3 flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-gray-800">${u.ad}</div>
+                            <div class="text-xs ${stokRengi}">Stok: ${u.stok} Adet | ${u.fiyat} ₺</div>
+                        </div>
+                        <button onclick="sepeteEkle(${u.id})" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-200 transition-colors">
+                            + Ekle
+                        </button>
+                    </div>
+                `;
+            });
+
+            const sDiv = document.getElementById('sepetListesi');
+            sDiv.innerHTML = sepet.map((s, index) => `
+                <div class="flex justify-between items-center bg-indigo-800 p-2 rounded">
+                    <span>${s.ad}</span>
+                    <span class="font-bold">${s.fiyat} ₺</span>
+                </div>
+            `).join('');
+            
+            const toplam = sepet.reduce((sum, item) => sum + item.fiyat, 0);
+            document.getElementById('toplamFiyat').innerText = toplam;
+        }
+
+        // İlk açılışta ekranı çiz
+        guncelleEkran();
+    </script>
+</body>
+</html>
